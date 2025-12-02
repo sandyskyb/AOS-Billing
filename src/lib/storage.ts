@@ -58,7 +58,7 @@ export const storage = {
     localStorage.setItem(key, JSON.stringify(data));
   },
 };
-
+// changed
 // Product operations
 export const productStorage = {
   getAll: (): Product[] => storage.get<Product>(STORAGE_KEYS.PRODUCTS),
