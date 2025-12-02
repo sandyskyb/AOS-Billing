@@ -11,7 +11,7 @@ All colors MUST be HSL.
   body * {
     visibility: hidden !important;
   }
-
+/* hh */
   /* SHOW ONLY THERMAL PRINT AREA */
   #thermal-print-area,
   #thermal-print-area * {
