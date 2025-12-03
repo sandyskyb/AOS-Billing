@@ -50,21 +50,49 @@ export default function Customers() {
     ? customerStorage.search(searchQuery)
     : customers;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  const newCustomer = {
+    id: editingCustomer ? editingCustomer.id : crypto.randomUUID(),
+    name: formData.name,
+    phone: formData.phone,
+    address: formData.address,
+  };
+
+  try {
     if (editingCustomer) {
-      customerStorage.update(editingCustomer.id, formData);
+      // UPDATE
+      await fetch(`http://localhost:8000/customers/${editingCustomer.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newCustomer),
+      });
+
+      customerStorage.update(editingCustomer.id, newCustomer);
       toast.success("Customer updated successfully");
     } else {
-      customerStorage.add(formData);
+      // ADD
+      await fetch("http://localhost:8000/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newCustomer),
+      });
+
+      customerStorage.add(newCustomer);
       toast.success("Customer added successfully");
     }
-    
+
     loadCustomers();
     resetForm();
     setOpen(false);
-  };
+
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to save customer!");
+  }
+};
+
 
   const handleEdit = (customer: Customer) => {
     setEditingCustomer(customer);
