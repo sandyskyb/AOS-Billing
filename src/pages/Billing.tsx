@@ -221,6 +221,11 @@ export default function Billing() {
       {/* Print View - Thermal Printer Format */}
       {showPrintView && (
         <div id="thermal-print-area" className="print:block hidden">
+           <div className="confirm-box">
+    <p>Do you want to print the bill?</p>
+    <button onClick={() => handlePrintConfirm(true)}>Yes</button>
+    <button onClick={() => handlePrintConfirm(false)}>No</button>
+  </div>
           <style>
 {`
   @media print {
@@ -248,6 +253,7 @@ export default function Billing() {
   }
 `}
 </style>
+
 
           <div style={{ width: '80mm', padding: '5mm', fontFamily: 'monospace', fontSize: '12px' }}>
             <div style={{ textAlign: 'center', marginBottom: '10px', borderBottom: '2px dashed #000', paddingBottom: '10px' }}>

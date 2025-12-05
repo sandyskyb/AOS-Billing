@@ -4,23 +4,5 @@
     "name": "Gokul",
     "phone": "9876543210",
     "address": "Chennai"
-  },
-  {
-    "id": "dd3e82a3-6178-496e-9121-99bd098a8e27",
-    "name": "Harish",
-    "phone": "434",
-    "address": "dasd"
-  },
-  {
-    "id": "f9ac2e17-e14d-459a-af95-3734e702b1bb",
-    "name": "Geevan",
-    "phone": "3434",
-    "address": "dasd"
-  },
-  {
-    "id": "b3e2b535-a48a-4a83-9fb2-b7d4ecdb17bc",
-    "name": "karthi",
-    "phone": "79879",
-    "address": ",nm"
   }
 ]

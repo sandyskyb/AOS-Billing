@@ -58,7 +58,7 @@ export const storage = {
     localStorage.setItem(key, JSON.stringify(data));
   },
 };
-// changed
+
 // Product operations
 export const productStorage = {
   getAll: (): Product[] => storage.get<Product>(STORAGE_KEYS.PRODUCTS),
@@ -100,63 +100,41 @@ export const productStorage = {
   },
 };
 
-// Customer operations using customers.json in localStorage
-
-const JSON_FILE = "customers.json";
-
-// Read JSON file from localStorage
-const readJSON = (): Customer[] => {
-  const data = localStorage.getItem(JSON_FILE);
-  return data ? JSON.parse(data) : [];
-};
-
-// Write JSON file to localStorage
-const writeJSON = (data: Customer[]) => {
-  localStorage.setItem(JSON_FILE, JSON.stringify(data, null, 2));
-};
-
+// Customer operations
 export const customerStorage = {
-  getAll: (): Customer[] => readJSON(),
-
-  save: (customers: Customer[]) => writeJSON(customers),
-
-  add: (customer: Omit<Customer, "id" | "createdAt">): Customer => {
-    const customers = readJSON();
+  getAll: (): Customer[] => storage.get<Customer>(STORAGE_KEYS.CUSTOMERS),
+  save: (customers: Customer[]) => storage.set(STORAGE_KEYS.CUSTOMERS, customers),
+  add: (customer: Omit<Customer, 'id' | 'createdAt'>): Customer => {
+    const customers = customerStorage.getAll();
     const newCustomer: Customer = {
       ...customer,
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
     };
     customers.push(newCustomer);
-    writeJSON(customers);
+    customerStorage.save(customers);
     return newCustomer;
   },
-
   update: (id: string, updates: Partial<Customer>) => {
-    const customers = readJSON();
+    const customers = customerStorage.getAll();
     const index = customers.findIndex(c => c.id === id);
     if (index !== -1) {
       customers[index] = { ...customers[index], ...updates };
-      writeJSON(customers);
+      customerStorage.save(customers);
     }
   },
-
   delete: (id: string) => {
-    const customers = readJSON().filter(c => c.id !== id);
-    writeJSON(customers);
+    const customers = customerStorage.getAll().filter(c => c.id !== id);
+    customerStorage.save(customers);
   },
-
   search: (query: string): Customer[] => {
-    const customers = readJSON();
-    const lower = query.toLowerCase();
+    const customers = customerStorage.getAll();
+    const lowerQuery = query.toLowerCase();
     return customers.filter(
-      c =>
-        c.name.toLowerCase().includes(lower) ||
-        c.phone.includes(query)
+      c => c.name.toLowerCase().includes(lowerQuery) || c.phone.includes(query)
     );
   },
 };
-
 
 // Bill operations
 export const billStorage = {

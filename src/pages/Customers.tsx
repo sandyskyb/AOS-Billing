@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Edit, Trash2, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, Download, Upload } from "lucide-react";
 import { customerStorage, billStorage, Customer, Bill } from "@/lib/storage";
 import { toast } from "sonner";
 import {
@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import initialCustomers from "@/data/customers.json";
+import { exportCustomersToExcel, importCustomersFromExcel } from "@/lib/excelSync";
 
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -29,6 +30,7 @@ export default function Customers() {
     phone: "",
     address: "",
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadCustomers();
@@ -50,49 +52,21 @@ export default function Customers() {
     ? customerStorage.search(searchQuery)
     : customers;
 
- const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  const newCustomer = {
-    id: editingCustomer ? editingCustomer.id : crypto.randomUUID(),
-    name: formData.name,
-    phone: formData.phone,
-    address: formData.address,
-  };
-
-  try {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
     if (editingCustomer) {
-      // UPDATE
-      await fetch(`http://localhost:8000/customers/${editingCustomer.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newCustomer),
-      });
-
-      customerStorage.update(editingCustomer.id, newCustomer);
+      customerStorage.update(editingCustomer.id, formData);
       toast.success("Customer updated successfully");
     } else {
-      // ADD
-      await fetch("http://localhost:8000/customers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newCustomer),
-      });
-
-      customerStorage.add(newCustomer);
+      customerStorage.add(formData);
       toast.success("Customer added successfully");
     }
-
+    
     loadCustomers();
     resetForm();
     setOpen(false);
-
-  } catch (err) {
-    console.error(err);
-    toast.error("Failed to save customer!");
-  }
-};
-
+  };
 
   const handleEdit = (customer: Customer) => {
     setEditingCustomer(customer);
@@ -124,6 +98,33 @@ export default function Customers() {
     setEditingCustomer(null);
   };
 
+  const handleExport = () => {
+    if (customers.length === 0) {
+      toast.error("No customers to export");
+      return;
+    }
+    exportCustomersToExcel(customers);
+    toast.success("Customers exported successfully");
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const result = await importCustomersFromExcel(file);
+    if (result.success) {
+      toast.success(result.message);
+      loadCustomers();
+    } else {
+      toast.error(result.message);
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -131,18 +132,34 @@ export default function Customers() {
           <h2 className="text-3xl font-bold tracking-tight text-foreground">Customer Management</h2>
           <p className="text-muted-foreground">Manage customer information and order history</p>
         </div>
-        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Customer
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingCustomer ? "Edit Customer" : "Add New Customer"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="flex gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".xlsx,.xls"
+            onChange={handleImport}
+            className="hidden"
+          />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="mr-2 h-4 w-4" />
+            Import
+          </Button>
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
+          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Customer
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingCustomer ? "Edit Customer" : "Add New Customer"}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="name">Name</Label>
                 <Input
@@ -170,12 +187,13 @@ export default function Customers() {
                   required
                 />
               </div>
-              <Button type="submit" className="w-full">
-                {editingCustomer ? "Update Customer" : "Add Customer"}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <Button type="submit" className="w-full">
+                  {editingCustomer ? "Update Customer" : "Add Customer"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card>

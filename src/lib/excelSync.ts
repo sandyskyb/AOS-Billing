@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { Product, productStorage } from './storage';
+import { Product, productStorage, Customer, customerStorage } from './storage';
 
 /**
  * Export products to Excel file
@@ -182,6 +182,139 @@ export const importProductsFromExcel = async (
       success: true,
       message,
       importedCount: importedProducts.length
+    };
+
+  } catch (error) {
+    console.error('Excel import error:', error);
+    return {
+      success: false,
+      message: `Failed to import Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      importedCount: 0
+    };
+  }
+};
+
+/**
+ * Export customers to Excel file
+ */
+export const exportCustomersToExcel = (customers: Customer[]): void => {
+  const excelData = customers.map(customer => ({
+    'ID': customer.id,
+    'Name': customer.name,
+    'Phone': customer.phone,
+    'Address': customer.address,
+    'Created At': customer.createdAt
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Customers');
+
+  worksheet['!cols'] = [
+    { wch: 25 }, // ID
+    { wch: 25 }, // Name
+    { wch: 15 }, // Phone
+    { wch: 40 }, // Address
+    { wch: 20 }  // Created At
+  ];
+
+  const timestamp = new Date().toISOString().split('T')[0];
+  const filename = `customers_${timestamp}.xlsx`;
+
+  XLSX.writeFile(workbook, filename);
+};
+
+/**
+ * Import customers from Excel file
+ */
+export const importCustomersFromExcel = async (
+  file: File
+): Promise<{ success: boolean; message: string; importedCount: number }> => {
+  try {
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    
+    const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+    if (!jsonData || jsonData.length === 0) {
+      return {
+        success: false,
+        message: 'Excel file is empty or invalid',
+        importedCount: 0
+      };
+    }
+
+    const existingCustomers = customerStorage.getAll();
+    const existingCustomerMap = new Map(existingCustomers.map(c => [c.phone, c]));
+    
+    const importedCustomers: Customer[] = [];
+    const errors: string[] = [];
+
+    for (let i = 0; i < jsonData.length; i++) {
+      const row = jsonData[i];
+      const rowNum = i + 2;
+
+      try {
+        if (!row['Name'] || !row['Phone']) {
+          errors.push(`Row ${rowNum}: Name and Phone are required`);
+          continue;
+        }
+
+        const name = String(row['Name']).trim();
+        const phone = String(row['Phone']).trim();
+        const address = row['Address'] ? String(row['Address']).trim() : '';
+
+        // Check if customer exists by ID or phone
+        const existingById = row['ID'] ? existingCustomers.find(c => c.id === row['ID']) : null;
+        const existingByPhone = existingCustomerMap.get(phone);
+        const existing = existingById || existingByPhone;
+
+        const customer: Customer = {
+          id: existing?.id || row['ID'] || crypto.randomUUID(),
+          name,
+          phone,
+          address,
+          createdAt: existing?.createdAt || new Date().toISOString()
+        };
+
+        importedCustomers.push(customer);
+
+      } catch (error) {
+        errors.push(`Row ${rowNum}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    if (importedCustomers.length === 0) {
+      return {
+        success: false,
+        message: 'No valid customers found in Excel file',
+        importedCount: 0
+      };
+    }
+
+    // Merge with existing
+    const finalCustomers = [...importedCustomers];
+    
+    for (const existing of existingCustomers) {
+      const wasUpdated = importedCustomers.some(c => c.id === existing.id);
+      if (!wasUpdated) {
+        finalCustomers.push(existing);
+      }
+    }
+
+    customerStorage.save(finalCustomers);
+
+    const message = errors.length > 0
+      ? `Imported ${importedCustomers.length} customers with ${errors.length} warnings: ${errors.join('; ')}`
+      : `Successfully imported ${importedCustomers.length} customers`;
+
+    return {
+      success: true,
+      message,
+      importedCount: importedCustomers.length
     };
 
   } catch (error) {
